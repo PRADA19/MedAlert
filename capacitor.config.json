@@ -1,0 +1,16 @@
+{
+  "appId": "com.medialert.app",
+  "appName": "MediAlert Pro",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#3A9295",
+      "sound": "beep.wav"
+    }
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
