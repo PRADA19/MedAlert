@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { useMedicineStore } from '../store/medicineStore';
 import { useReminderStore } from '../store/reminderStore';
 import { useHistoryStore } from '../store/historyStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { notificationService } from '../services/notificationService';
 import { ActiveDueItem } from '../types/reminder';
 import {
   getTodayDateString,
@@ -18,6 +21,44 @@ export function useReminderEngine() {
   const { settings } = useSettingsStore();
 
   const isRunningRef = useRef(false);
+
+  // Sync native system alarms into Android System AlarmManager whenever medicines change
+  useEffect(() => {
+    if (medicines.length > 0 && settings.enableReminders) {
+      notificationService.syncAllNativeAlarms(medicines);
+    }
+  }, [medicines, settings.enableReminders]);
+
+  // Listen for Native Notification Taps on Android/iOS
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const handleNotificationTap = async () => {
+        try {
+          const listener = await LocalNotifications.addListener(
+            'localNotificationActionPerformed',
+            (action) => {
+              const extra = action.notification.extra;
+              if (extra && extra.medicineId) {
+                triggerReminders([
+                  {
+                    medicineId: extra.medicineId,
+                    scheduledTime: extra.scheduledTime || getCurrentTimeString(),
+                    scheduledDate: extra.scheduledDate || getTodayDateString(),
+                    dueAtISO: new Date().toISOString(),
+                  },
+                ]);
+              }
+            }
+          );
+          return () => listener.remove();
+        } catch (e) {
+          console.error('Error adding notification tap listener', e);
+        }
+      };
+
+      handleNotificationTap();
+    }
+  }, [triggerReminders]);
 
   useEffect(() => {
     if (!settings.enableReminders) return;
